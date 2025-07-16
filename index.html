@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Royal Ofis İş Takip Paneli</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+  <header class="bg-indigo-600 text-white p-4 shadow-md">
+    <h1 class="text-2xl font-bold">📋 Royal Ofis Dijital Baskı – İş Takip Paneli</h1>
+  </header>
+
+  <main class="p-4 max-w-screen-xl mx-auto">
+    <!-- İş Ekleme Formu -->
+    <section class="bg-white rounded-xl shadow-md p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Yeni İş Ekle</h2>
+      <form class="grid grid-cols-1 md:grid-cols-2 gap-4" id="jobForm">
+        <input type="text" placeholder="Müşteri Adı" class="border p-2 rounded" required>
+        <input type="text" placeholder="Telefon / E-posta" class="border p-2 rounded" required>
+        <input type="text" placeholder="İş Açıklaması" class="border p-2 rounded" required>
+        <select class="border p-2 rounded">
+          <option>Afiş</option>
+          <option>Kartvizit</option>
+          <option>Branda</option>
+          <option>Dijital Baskı</option>
+        </select>
+        <select class="border p-2 rounded">
+          <option>Hazırlanıyor</option>
+          <option>Basımda</option>
+          <option>Teslim Edildi</option>
+        </select>
+        <select class="border p-2 rounded">
+          <option>Emir</option>
+          <option>Sıla</option>
+          <option>Furkan</option>
+          <option>Ramazan</option>
+        </select>
+        <button type="submit" class="col-span-1 md:col-span-2 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">İşi Kaydet</button>
+      </form>
+    </section>
+
+    <!-- Aktif İşler Listesi -->
+    <section class="bg-white rounded-xl shadow-md p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">📂 Aktif İşler</h2>
+      <div id="activeJobs" class="space-y-4">
+        <!-- Dinamik içerik buraya gelecek -->
+      </div>
+    </section>
+
+    <!-- Dashboard Grafik ve Rapor -->
+    <section class="bg-white rounded-xl shadow-md p-6 mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">📊 İş Durumu Raporu</h2>
+        <button onclick="downloadReport()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Bugünkü Raporu İndir</button>
+      </div>
+      <canvas id="jobChart" class="w-full max-w-xl h-64 mx-auto"></canvas>
+    </section>
+
+    <!-- Biten İşler Listesi -->
+    <section class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-xl font-semibold mb-4">✅ Tamamlanan İşler</h2>
+      <div id="completedJobs" class="space-y-2">
+        <!-- Dinamik içerik buraya gelecek -->
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const jobForm = document.getElementById('jobForm');
+    const activeJobs = document.getElementById('activeJobs');
+    const completedJobs = document.getElementById('completedJobs');
+
+    const colors = {
+      Emir: 'bg-blue-200',
+      Sıla: 'bg-pink-200',
+      Furkan: 'bg-green-200',
+      Ramazan: 'bg-yellow-200'
+    };
+
+    let jobStats = {
+      Hazırlanıyor: 0,
+      Basımda: 0,
+      'Teslim Edildi': 0,
+      'Biten İşler': 0
+    };
+
+    const todayJobs = [];
+
+    jobForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const inputs = jobForm.querySelectorAll('input, select');
+      const [name, contact, desc, type, status, person] = [...inputs].map(el => el.value);
+      const timestamp = new Date().toLocaleString();
+
+      const div = document.createElement('div');
+      div.className = `p-4 rounded shadow-md flex justify-between items-center border-l-8 ${colors[person]}`;
+      div.innerHTML = `
+        <div>
+          <h3 class="font-bold text-lg">${desc}</h3>
+          <p class="text-sm">${name} • ${contact} • ${type}</p>
+          <span class="text-xs">Durum: ${status} • Personel: ${person}</span>
+        </div>
+        <button onclick="completeJob(this, '${status}')" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">Bitti</button>
+      `;
+      activeJobs.appendChild(div);
+      jobStats[status]++;
+      todayJobs.push({name, contact, desc, type, status, person, timestamp});
+      updateChart();
+      jobForm.reset();
+    });
+
+    function completeJob(btn, prevStatus) {
+      const job = btn.parentElement;
+      activeJobs.removeChild(job);
+      btn.remove();
+      completedJobs.appendChild(job);
+      jobStats[prevStatus]--;
+      jobStats['Biten İşler']++;
+      updateChart();
+    }
+
+    const ctx = document.getElementById('jobChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: Object.keys(jobStats),
+        datasets: [{
+          label: 'İş Durumları',
+          data: Object.values(jobStats),
+          backgroundColor: ['#a5b4fc', '#fcd34d', '#34d399', '#f87171']
+        }]
+      },
+      options: {
+        responsive: true
+      }
+    });
+
+    function updateChart() {
+      chart.data.datasets[0].data = Object.values(jobStats);
+      chart.update();
+    }
+
+    function downloadReport() {
+      let content = 'Müşteri Adı,İletişim,İş Açıklaması,İş Türü,Durum,Personel,Tarih\n';
+      todayJobs.forEach(job => {
+        content += `${job.name},${job.contact},${job.desc},${job.type},${job.status},${job.person},${job.timestamp}\n`;
+      });
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'bugunku_rapor.csv');
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+  <footer class="text-center text-xs text-gray-400 py-4">
+    Designed by. Furkan Poyraz
+  </footer>
+</body>
+</html>
